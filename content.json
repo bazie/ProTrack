@@ -1,0 +1,14 @@
+":[{"id":"2bf2fbf8-8ab7-4c07-97a5-c8bc88b6f9e4",
+"email":"root@mail.com",
+"statu":1,"name":"User Root",
+"level":{"id":1,"name":"Root User","code":"root",}
+"access":{"read":true,"create":true,"delete":true,"update":true},"created_at":"2025-04-10T09: 34: 51.000000Z",
+"updated_at":"2025-04-10T09: 34: 51.000000Z",
+"deleted_at":null},"access_group":{"id":"1",
+"name":"Root User",
+"code":"root",
+"created_at":"2025-04-10T09: 34: 51.000000Z",
+"updated_at":"2025-04-10T09: 34: 51.000000Z",
+"deleted_at":null},"action":"<div class='btn-group'><button class=\"btn-action btn btn-sm btn-outline\" data-title=\"Edit\" data-action=\"edit\" data-url=\"user\" data-id=\"2bf2fbf8-8ab7-4c07-97a5-c8bc88b6f9e4\" title=\"Edit\"> <i class=\"fa fa-edit text-warning\"><\/i> <\/button> <button class=\"btn-action btn btn-sm btn-outline\" data-title=\"Delete\" data-action=\"delete\" data-url=\"user\" data-id=\"2bf2fbf8-8ab7-4c07-97a5-c8bc88b6f9e4\" title=\"Delete\"> <i class=\"fa fa-trash text-danger\"><\/i> <\/button><\/div>",
+"DT_RowIndex": 1
+}

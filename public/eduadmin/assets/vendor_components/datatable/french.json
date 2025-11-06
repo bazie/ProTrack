@@ -1,0 +1,17 @@
+{
+    "sProcessing": "<div class='d-flex align-items-center justify-content-center fs-lg'><div class='spinner-border spinner-border-sm text-primary mr-2' role='status'><span class='sr-only'> Chargement...</span></div> Traitement...</div>",
+    "sLengthMenu": "Afficher _MENU_ par page",
+    "sZeroRecords": "Aucun enregistrement trouvé",
+    "sInfo": "Affichage de _START_ à _END_ sur _TOTAL_ enregistrements",
+    "sInfoEmpty": "Aucun enregistrement disponible",
+    "sInfoFiltered": "(filtré à partir de _MAX_ enregistrements)",
+    "sInfoPostFix": "",
+    "sSearch": "<div class='input-group-text d-inline-flex width-3 align-items-center justify-content-center border-bottom-right-radius-0 border-top-right-radius-0 border-right-0'><i class='fa fa-search'></i></div>",
+    "sUrl": "",
+    "oPaginate": {
+        "sFirst": "Debut",
+        "sPrevious": "<i class='fa fa-chevron-left'></i>",
+        "sNext": "<i class='fa fa-chevron-right'></i>",
+        "sLast": "Fin"
+    }
+}
