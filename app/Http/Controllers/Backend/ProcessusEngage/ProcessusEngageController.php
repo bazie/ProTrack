@@ -129,15 +129,6 @@ class ProcessusEngageController extends Controller
 
     public function storeEtapeProcessus(Request $request)
     {
-        // Logique pour stocker les données de l'étape du processus initié
-        // Vous pouvez accéder aux données du formulaire via $request->input('nom_du_champ')
-        // Par exemple :
-        // $processusId = $request->input('processus_id');
-        // $departementId = $request->input('departement_id');
-        // $projetId = $request->input('projet_id');
-        // etc.
-
-        // Après avoir traité et stocké les données, vous pouvez retourner une réponse JSON
         return response()->json(['status' => TRUE, 'message' => 'Processus initié avec succès']);
     }
 
