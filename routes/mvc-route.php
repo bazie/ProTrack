@@ -152,8 +152,10 @@ Route::group(['prefix'=>config('mvc.route_prefix')], function () { // remove thi
 			Route::get('delete/{id}', 'ProcessusEngage\ProcessusEngageController@delete');
 			Route::get('initier', 'ProcessusEngage\ProcessusEngageController@initier')->name('.initier');
 			Route::get('get-entites/{type}', 'ProcessusEngage\ProcessusEngageController@getEntites')->name('.get-entites');
+			Route::get('get-users/{option}/{level}', 'ProcessusEngage\ProcessusEngageController@getUsers')->name('.get-users');
 			Route::get('selection-processus/{processus_id}', 'ProcessusEngage\ProcessusEngageController@selectionProcessus')->name('.selection-processus');
-			Route::get('set-first-etape/{processus_id}', 'ProcessusEngage\ProcessusEngageController@setFistEtapeProcessus')->name('.set-first-etape');
+			Route::get('set-etape/{processus_id}/{ordretape}', 'ProcessusEngage\ProcessusEngageController@setEtapeProcessus')->name('.set-etape');
+			Route::post('store-processus-init', 'ProcessusEngage\ProcessusEngageController@storeProcessusInit')->name('.store-processus-init');
 		});
 		Route::resource('processus-engage', 'ProcessusEngage\ProcessusEngageController');
 		//end-processus-engage

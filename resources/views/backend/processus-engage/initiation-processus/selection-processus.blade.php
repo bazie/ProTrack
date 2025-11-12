@@ -42,7 +42,7 @@
         </div>
         <!-- /.box-body -->
         <div class="box-footer clearfix">
-            <h4 class="box-title">Durée estimatif du processus : {{ $dureeProcessus }} Jours</h4>
+            <h4 class="box-title">Durée estimatif du processus : {{ $dureeProcessus }} jours</h4>
         </div>
     </div>
     <!-- /.box -->

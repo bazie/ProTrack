@@ -8,7 +8,9 @@ use App\Models\DocumentEtape;
 use App\Models\Etape;
 use App\Models\Level;
 use App\Models\Processus;
+use App\Models\ProcessusEngage;
 use App\Models\Projet;
+use App\Models\User;
 use Dom\Document;
 use Illuminate\Http\Request;
 use Process;
@@ -117,19 +119,55 @@ class ProcessusEngageController extends Controller
         return view($this->view . '.initiation-processus.selection-processus', compact('processus', 'etapes', 'dureeProcessus'));
     }
 
-    public function setFistEtapeProcessus($processus_id)
+    public function setEtapeProcessus($processus_id, $ordretape = 1)
     {
+
         $processus = Processus::find($processus_id);
-        $firstEtape = Etape::with('Metadonnees','DocumentEtape.TypeDocument')->where('processus_id', $processus_id)
-            ->where('ordre', 1)
+        $curentEtape = Etape::with('Metadonnees', 'DocumentEtape.TypeDocument')->where('processus_id', $processus_id)
+            ->where('ordre', $ordretape)
             ->first();
-        return view($this->view . '.form-etape-processus', compact('firstEtape','processus'));
-       
+        $nextEtape = Etape::with('Metadonnees', 'DocumentEtape.TypeDocument')->where('processus_id', $processus_id)
+            ->where('ordre', $curentEtape->ordre + 1)
+            ->first();
+        $nextEtapeUsers = User::where('level_id', $nextEtape->level_id)
+            ->selectRaw("CONCAT(first_name, ' ', last_name, ' (', email, ')') AS full_name, id")
+            ->pluck('full_name', 'id');
+
+        return view($this->view . '.form-etape-processus', compact('curentEtape', 'nextEtape', 'nextEtapeUsers', 'processus'));
+
     }
 
-    public function storeEtapeProcessus(Request $request)
+    public function getUsers($option,$level)
     {
-        return response()->json(['status' => TRUE, 'message' => 'Processus initié avec succès']);
+        if ($option == 'more') {
+            $users = User::selectRaw("CONCAT(first_name, ' ', last_name, ' (', email, ')') AS full_name, id")
+                ->pluck('full_name', 'id');
+        } else {
+            $users =User::where('level_id', $level)
+            ->selectRaw("CONCAT(first_name, ' ', last_name, ' (', email, ')') AS full_name, id")
+            ->pluck('full_name', 'id');
+        }
+        return response()->json($users);
+
+    }
+
+    public function storeProcessusInit(Request $request)
+    {
+        // Merge entite_id based on type_entite
+        if ($request->type_entite == 'departement') {
+            $request->merge(['entite_id' => $request->departement_id]);
+        } elseif ($request->type_entite == 'projet') {
+            $request->merge(['entite_id' => $request->projet_id]);
+        }
+        $request->merge(['etat' => 'en_cours']);
+
+
+
+        $processusEngage = ProcessusEngage::create($request->all());
+        if ($this->model::create($request->all())) {
+            $response = ['status' => TRUE, 'message' => 'Données enregistrées avec succès'];
+        }
+        return response()->json($response ?? ['status' => FALSE, 'message' => 'Les données n\'ont pas pu être enregistrées']);
     }
 
 

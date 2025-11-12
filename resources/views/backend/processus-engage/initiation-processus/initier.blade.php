@@ -7,12 +7,12 @@
 
             </div>
             <section class="content">
-                {{ html()->form('POST', route($page->url.'.store'))->id('form-create-'.$page->code)->acceptsFiles()->class('form form form-horizontal')->open() }}
+                {{ html()->form('POST', route($page->url . '.store-processus-init'))->id('form-initialisation-' . $page->code)->acceptsFiles()->class('form form form-horizontal')->open() }}
                 <div class="row">
                     <div class="col-12">
                         <div class="box">
                             <div class="box-header">
-                                <h4 class="box-title">Initier un processus</h4>
+                                <h3 class="box-title">Initier un processus</h3>
                             </div>
                             <div class="box-body">
                                 <div class="row">
@@ -32,7 +32,8 @@
                                 <div class="row mt-30" id="initProcessus">
                                     <div class="col-md-12">
                                         <div class="alert alert-info">
-                                            <strong>Info :</strong> Sélectionnez le processus, le type d'entité et l'entité pour initier le processus.
+                                            <strong>Info :</strong> Sélectionnez le processus, le type d'entité et l'entité
+                                            pour initier le processus.
                                         </div>
                                     </div>
                                 </div>
@@ -53,7 +54,7 @@
     <script>
         $('.select2').select2();
         $(document).ready(function() {
-            
+
             $('#type_entite').on('change', function() {
                 var type = $(this).val();
                 $('#entite').empty().append('<option value="">Chargement...</option>');
@@ -86,8 +87,11 @@
                 var typeEntite = $('#type_entite').val();
                 var entiteId = $('#entite').val();
                 if (processusId && typeEntite && entiteId) {
-                    var urlSelection = "{{ route($page->url . '.selection-processus', '') }}" + '/' + processusId;
-                    $('#initProcessus').html('<div class="col-md-12"><div class="text-center">Chargement des étapes...</div></div>');
+                    var urlSelection = "{{ route($page->url . '.selection-processus', '') }}" + '/' +
+                        processusId;
+                    $('#initProcessus').html(
+                        '<div class="col-md-12"><div class="text-center">Chargement des étapes...</div></div>'
+                    );
                     $.ajax({
                         url: urlSelection,
                         type: 'GET',
@@ -105,7 +109,7 @@
                             `);
                         }
                     });
-                }else {
+                } else {
                     $('#initProcessus').html(`
                         <div class="col-md-12">
                             <div class="alert alert-info">
@@ -116,7 +120,7 @@
                 }
             });
 
-              
+
         });
 
         $(document).on('click', '.btn-initier-processus', function() {
@@ -124,15 +128,24 @@
             var typeEntite = $('#type_entite').val();
             var entiteId = $('#entite').val();
             if (processusId && typeEntite && entiteId) {
-                var urlSetFirstEtape = "{{ route($page->url . '.set-first-etape', '') }}" + '/' + processusId;
-                alert(urlSetFirstEtape);
-                $('#initProcessus').html('<div class="col-md-12"><div class="text-center">Initialisation du processus...</div></div>');
+                var urlSetFirstEtape =
+                    "{{ route($page->url . '.set-etape', ['processus_id' => ':processusId', 'ordretape' => ':ordreEtape']) }}";
+
+                urlSetFirstEtape = urlSetFirstEtape
+                    .replace(':processusId', processusId)
+                    .replace(':ordreEtape', 1);
+
+
+                $('#initProcessus').html(
+                    '<div class="col-md-12"><div class="text-center">Initialisation du processus...</div></div>'
+                );
                 $.ajax({
                     url: urlSetFirstEtape,
                     type: 'GET',
                     dataType: 'html',
                     success: function(data) {
                         $('#initProcessus').html(data);
+                        $('#users').select2();
                     },
                     error: function() {
                         $('#initProcessus').html(`
@@ -148,5 +161,60 @@
                 swal("Erreur", "Veuillez sélectionner le processus, le type d'entité et l'entité.", "error");
             }
         });
+
+        $(document).on('change', '.doc', function() {
+            var fileName = $(this).val().split('\\').pop();
+            if (fileName) {
+                $(this).closest('tr').find('td:last').html(
+                    '<span class="badge badge-pill badge-warning">Fichier sélectionné</span> <button type="button" class="btn-cancel-file btn btn-sm btn-outline"  title="Annuler le fichier" ><i class="fa fa-close text-danger" aria-hidden="true"></i> </button>'
+                );
+            } else {
+                $(this).closest('tr').find('td:last').html(
+                    '<span class="badge badge-pill badge-secondary">Aucune selection</span>');
+            }
+        });
+
+        $(document).on('click', '.btn-cancel-file', function() {
+            var inputFile = $(this).closest('tr').find('input[type="file"]');
+            inputFile.val('');
+            $(this).closest('td').html('<span class="badge badge-pill badge-secondary">Aucune selection</span>');
+        });
+
+        $(document).on('click', '#btn-more-users', function() {
+            var $btn = $(this);
+            var urlAjax = "{{ route($page->url . '.get-users', ['option' => ':option', 'level' => ':level']) }}"
+            $('#users').empty().append('<option value="">Chargement...</option>');
+            var option = $btn .data('option');
+            var level = $btn .data('level');
+            urlAjax = urlAjax
+                .replace(':option', option)
+                .replace(':level', level)
+            $.ajax({
+                url: urlAjax,
+                type: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    $('#users').empty().append(
+                        '<option value="" default>-- Selectionner des destinataires --</option>');
+                    $.each(data, function(key, value) {
+                        $('#users').append('<option value="' + key + '">' +
+                            value + '</option>');
+                    });
+                    if (option === 'more') {
+                        $btn .data('option','less');
+                        $btn .html('<i class="fa fa-user text-primary"></i>')
+                    } else {
+                        $btn .data('option', 'more');
+                        $btn .html('<i class="fa fa-users text-primary"></i>')
+                    }
+
+                },
+                error: function() {
+                    $('#users').empty().append(
+                        '<option value="">Erreur de chargement</option>');
+                }
+            });
+        });
     </script>
+
 @endpush

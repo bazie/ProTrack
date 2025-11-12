@@ -16,8 +16,7 @@ return new class extends Migration
         Schema::create('processus_engages', function (Blueprint $table) {
             $table->uuid("id")->primary();
 			$table->string("type_entite")->nullable();
-			$table->bigInteger("projet_id")->nullable()->constrained();
-			$table->bigInteger("departement_id")->nullable()->constrained();
+			$table->bigInteger("entite_id")->nullable()->constrained();
 			$table->bigInteger("processus_id")->nullable()->constrained();
             $table->bigInteger("etape_id")->nullable()->constrained();
             $table->string("etat")->nullable();
