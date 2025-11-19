@@ -23,4 +23,9 @@ class DocumentEtape extends Model
 	{
 		return $this->belongsTo(TypeDocument::class);
 	}
+
+	public function type_document()
+	{
+		return $this->belongsTo(TypeDocument::class, 'type_document_id');
+	}
 }

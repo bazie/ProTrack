@@ -17,7 +17,7 @@ class DocumentEtapeUpload extends Model
 
 	public function document_etape()
 	{
-		return $this->belongsTo(DocumentEtape::class);
+		return $this->belongsTo(DocumentEtape::class, 'document_etape_id');
 	}
 	public function processus_engage()
 	{

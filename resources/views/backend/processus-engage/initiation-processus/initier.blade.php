@@ -133,7 +133,7 @@
 
                 urlSetFirstEtape = urlSetFirstEtape
                     .replace(':processusId', processusId)
-                    .replace(':ordreEtape', 1);
+                    .replace(':ordreEtape', 0);
 
 
                 $('#initProcessus').html(

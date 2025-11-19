@@ -1,5 +1,53 @@
-$(document).ready(function () {
-	$('#datatable').DataTable({
+function initDatatable() {
+    $('.datatable').DataTable({
+        searchDelay: 2000,
+		responsive: true,
+		lengthChange: true,
+        searching: true,
+		processing: true,
+        lengthMenu: [[10, 25, 50, 100 ,200 , 500, -1], [10, 25, 50, 100 ,200 , 500, "All"]],
+		language: {
+            {{-- Uncomment this line to use Indonesian language --}}
+            {{--url: "{{ asset(config('master.app.web.assets').'/assets/vendor_components/datatable/french.json') }}"--}}
+        },
+        dom: 'lBfrtip',
+        buttons: [
+            {
+                extend: 'csv',
+                text: 'CSV',
+                className: 'btn btn-success btn-xs ms-10',
+                exportOptions: {
+                    columns: ':visible'
+                }
+            },
+            {
+                extend: 'excel',
+                text: 'Excel',
+                className: 'btn btn-info btn-xs',
+                exportOptions: {
+                    columns: ':visible'
+                }
+            },
+            {
+                extend: 'pdf',
+                text: 'PDF',
+                className: 'btn btn-warning btn-xs',
+                exportOptions: {
+                    columns: ':visible'
+                }
+            },
+            {
+                extend: 'print',
+                text: 'Imprimer',
+                className: 'btn btn-danger btn-xs me-10',
+                exportOptions: {
+                    columns: ':visible'
+                }
+            }
+        ]
+	});
+
+    $('#datatable').DataTable({
         searchDelay: 2000,
 		responsive: true,
 		lengthChange: true,
@@ -56,52 +104,7 @@ $(document).ready(function () {
             }
         ]
 	});
-
-    $('.datatable').DataTable({
-        searchDelay: 2000,
-		responsive: true,
-		lengthChange: true,
-        searching: true,
-		processing: true,
-        lengthMenu: [[10, 25, 50, 100 ,200 , 500, -1], [10, 25, 50, 100 ,200 , 500, "All"]],
-		language: {
-            {{-- Uncomment this line to use Indonesian language --}}
-            {{--url: "{{ asset(config('master.app.web.assets').'/assets/vendor_components/datatable/french.json') }}"--}}
-        },
-        dom: 'lBfrtip',
-        buttons: [
-            {
-                extend: 'csv',
-                text: 'CSV',
-                className: 'btn btn-success btn-xs ms-10',
-                exportOptions: {
-                    columns: ':visible'
-                }
-            },
-            {
-                extend: 'excel',
-                text: 'Excel',
-                className: 'btn btn-info btn-xs',
-                exportOptions: {
-                    columns: ':visible'
-                }
-            },
-            {
-                extend: 'pdf',
-                text: 'PDF',
-                className: 'btn btn-warning btn-xs',
-                exportOptions: {
-                    columns: ':visible'
-                }
-            },
-            {
-                extend: 'print',
-                text: 'Imprimer',
-                className: 'btn btn-danger btn-xs me-10',
-                exportOptions: {
-                    columns: ':visible'
-                }
-            }
-        ]
-	});
+}
+$(document).ready(function () {
+    initDatatable();
 })

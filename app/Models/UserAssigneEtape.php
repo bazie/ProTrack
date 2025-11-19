@@ -9,17 +9,17 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class UserAssigneEtape extends Model
 {
-    use HasFactory, HasUuids, SoftDeletes;
+	use HasFactory, HasUuids, SoftDeletes;
 
-    protected $fillable = ['id','user_id','processus_engage_id','assignate_by','etape_id','date_assignation','approbation','date_approbation','commentaire'];
-    protected $casts = [];
-    protected $table = 'user_assigne_etapes';
+	protected $fillable = ['id', 'user_id', 'processus_engage_id', 'assignate_by', 'etape_id', 'date_assignation', 'approbation', 'date_approbation', 'commentaire'];
+	protected $casts = [];
+	protected $table = 'user_assigne_etapes';
 
 	public function user()
 	{
 		return $this->belongsTo(User::class);
 	}
-	public function processus_engage()
+	public function processusEngage()
 	{
 		return $this->belongsTo(ProcessusEngage::class);
 	}
@@ -27,4 +27,15 @@ class UserAssigneEtape extends Model
 	{
 		return $this->belongsTo(Etape::class);
 	}
+
+	public function assignedUser()
+	{
+		return $this->belongsTo(User::class, 'user_id');
+	}
+
+	public function assignedByUser()
+	{
+		return $this->belongsTo(User::class, 'assignate_by');
+	}
+
 }

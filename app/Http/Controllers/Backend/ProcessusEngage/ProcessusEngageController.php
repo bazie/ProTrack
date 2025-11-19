@@ -123,9 +123,9 @@ class ProcessusEngageController extends Controller
         return view($this->view . '.initiation-processus.selection-processus', compact('processus', 'etapes', 'dureeProcessus'));
     }
 
-    public function setEtapeProcessus($processus_id, $ordretape = 1)
+    public function setEtapeProcessus($processus_id, $ordretape)
     {
-
+        $ordretape = $ordretape+1;
         $processus = Processus::find($processus_id);
         $curentEtape = Etape::with('Metadonnees', 'DocumentEtape.TypeDocument')->where('processus_id', $processus_id)
             ->where('ordre', $ordretape)
@@ -162,8 +162,9 @@ class ProcessusEngageController extends Controller
         // Définir entite_id en fonction de type_entite
 
         $request->merge([
-            'etat' => 'en_cours',
+            'etat' => 'En cours',
             'etape_id' => $request->etape_next_id,
+            'initiate_by' => $request->user()->id,
         ]);
 
         DB::beginTransaction();
@@ -175,9 +176,10 @@ class ProcessusEngageController extends Controller
 
             $saveMeta = $this->saveMetadonnee($request, $currentEtape, $processusEngage->id);
             $saveDocument = $this->saveDocumentEtape($request, $currentEtape, $processusEngage->id);
-            $saveUsers = $this->saveEtapeUsers($request, $processusEngage->id);
+            $saveFirstEtape = $this->assignationPremiereEtape($request->etape_current_id, $request->user()->id, $processusEngage->id);
+            $saveUsers = $this->saveEtapeUsers($request, $processusEngage->id, $request->user()->id);
 
-            if ($saveMeta && $saveDocument && $saveUsers) {
+            if ($saveMeta && $saveDocument && $saveUsers && $saveFirstEtape) {
                 DB::commit();
                 return response()->json(['status' => true, 'message' => 'Données enregistrées avec succès']);
             }
@@ -286,9 +288,59 @@ class ProcessusEngageController extends Controller
         return "{$entite}/{$processus_lib}/{$anneeFiscale}/{$month}";
     }
 
-    public function saveEtapeUsers(Request $request, $processusEngage_id)
+
+    public function validerEtape($processusEngage_id, $user_id)
+    {
+        $userAssign = UserAssigneEtape::where('processus_engage_id', $processusEngage_id)
+            ->where('user_id', $user_id)
+            ->first();
+
+        if ($userAssign) {
+            return $userAssign->update(['approbation' => 'OUI']);
+        }
+
+        return false; // Aucun enregistrement trouvé
+    }
+
+
+    public function rejeterEtape($processusEngage_id, $user_id)
+    {
+
+        $userAssign = UserAssigneEtape::where('processus_engage_id', $processusEngage_id)
+            ->where('user_id', $user_id)
+            ->first();
+
+        if ($userAssign) {
+            return $userAssign->update(['approbation' => 'NON']);
+        }
+
+        return false; // Aucun enregistrement trouvé
+
+    }
+
+    public function assignationPremiereEtape($first_etape_id, $user_id, $processusEngage_id)
+    {
+
+        if (
+            UserAssigneEtape::create([
+                'processus_engage_id' => $processusEngage_id,
+                'user_id' => $user_id,
+                'etape_id' => $first_etape_id,
+                'assignate_by' => $user_id,
+                'date_assignation' => now(),
+                'approbation' => 'OUI'
+
+            ])
+        )
+            return true;
+        else
+            return false;
+
+    }
+    public function saveEtapeUsers(Request $request, $processusEngage_id, $assign_by)
     {
         $userIds = $request->input('users', []);
+
         if (empty($userIds)) {
             return false;
         }
@@ -298,7 +350,9 @@ class ProcessusEngageController extends Controller
                     'processus_engage_id' => $processusEngage_id,
                     'user_id' => $userId,
                     'etape_id' => $request->etape_id,
+                    'assignate_by' => $assign_by,
                     'date_assignation' => now(),
+
                 ]);
 
             }
@@ -308,13 +362,139 @@ class ProcessusEngageController extends Controller
         }
     }
 
+
+
     public function traitementsProcessus(Request $request)
     {
         $user = $request->user();
-        $processusInities = ProcessusEngage::with('processus','etape')->where('initiate_by', $user->id)->get();
-        return view($this->view . '.traitement.traitement-processus', compact('processusInities'));
+        $processusInities = ProcessusEngage::with('processus', 'etape')
+            ->where('initiate_by', $user->id)
+            ->where('etat', 'En cours')
+            ->get();
+        $processusAssignes = UserAssigneEtape::with([
+            'processusEngage.processus:id,lib_processus,collection_name',
+            'processusEngage.projet:id,short_name',
+            'processusEngage.departement:id,dep_name',
+            'etape:id,nom_etape,delai',
+            'assignedByUser:id,first_name,last_name,email',
+
+        ])
+            ->where('user_id', $user->id)
+            ->where(function ($query) {
+                $query->whereNull('approbation')
+                    ->orWhereNotIn('approbation', ['OUI', 'NON']);
+            })
+            ->whereHas('processusEngage', function ($query) {
+                $query->where('etat', 'En cours');
+            })
+            ->get();
+        
+
+        return view($this->view . '.traitement.traitement-processus', compact('processusInities', 'processusAssignes'));
     }
 
+    public function listTraitementsProcessus(Request $request)
+    {
+        $user = $request->user();
+        $processusInities = ProcessusEngage::with('processus', 'etape')
+            ->where('initiate_by', $user->id)
+            ->where('etat', 'En cours')
+            ->get();
+        $processusAssignes = UserAssigneEtape::with([
+            'processusEngage.processus:id,lib_processus,collection_name',
+            'processusEngage.projet:id,short_name',
+            'processusEngage.departement:id,dep_name',
+            'etape:id,nom_etape,delai',
+            'assignedByUser:id,first_name,last_name,email',
+
+        ])
+            ->where('user_id', $user->id)
+            ->whereHas('processusEngage', function ($query) {
+                $query->where('etat', 'En cours');
+            })
+            ->get();
+
+        return view($this->view . '.traitement.all-tables-traitements', compact('processusInities', 'processusAssignes'));
+    }
+
+    public function detailsProcessusEngage(Request $request, $processusEngageId)
+    {
+        $processusEngage = ProcessusEngage::with([
+            'processus',
+            'etape',
+            'initiate_by_user',
+            'projet',
+            'departement'
+        ])->find($processusEngageId);
+
+        $metas = $this->getListMetadonnees($processusEngage->processus->id, $processusEngageId, $processusEngage->processus->collection_name);
+
+        $documents = DocumentEtapeUpload::with('document_etape.TypeDocument')
+            ->where('processus_engage_id', $processusEngageId)
+            ->whereHas('document_etape.TypeDocument')
+            ->get();
+
+
+        $etapesTraitees = UserAssigneEtape::with(['assignedUser:id,first_name,last_name,email', 'etape:id,nom_etape'])
+            ->where('processus_engage_id', $processusEngageId)
+            ->orderBy('created_at')->get();
+
+        $allowAction = $this->allowAction($request->user()->id, $processusEngageId);
+
+        return view($this->view . '.traitement.details-processus-engage', compact('processusEngage', 'metas', 'documents', 'etapesTraitees', 'allowAction'));
+    }
+
+
+    public function getListMetadonnees($processus_id, $processusEngageId,$collectionName)
+    {
+        // Récupération des métadonnées MongoDB
+
+        $metas = DB::connection('mongodb')
+            ->selectCollection($collectionName)
+            ->findOne(['processusEngage_id' => $processusEngageId]);
+
+        if (!$metas) {
+            return []; // Aucun document trouvé
+        }
+
+        // Récupération des étapes avec leurs métadonnées
+        $etapes = Etape::with('Metadonnees')
+            ->where('processus_id', $processus_id)
+            ->get();
+
+        $metadonnees = [];
+
+        foreach ($etapes as $etape) {
+            foreach ($etape->Metadonnees as $metadonnee) {
+                $fieldName = $metadonnee->field_name;
+                $libelle_meta = $metadonnee->libelle;
+
+                if ($fieldName && isset($metas[$fieldName])) {
+                    $metadonnees[] = [
+                        'libelle' => $libelle_meta,
+                        'fieldName' => $fieldName,
+                        'data' => $metas[$fieldName]
+                    ];
+                }
+            }
+        }
+
+        return $metadonnees;
+    }
+
+    public function allowAction($user_id, $processusEngage_id)
+    {
+        $assignation = UserAssigneEtape::where('user_id', $user_id)
+            ->where('processus_engage_id', $processusEngage_id)
+            ->where(function ($query) {
+                $query->whereNull('approbation')
+                    ->orWhereNotIn('approbation', ['OUI', 'NON']);
+            })
+            ->first();
+        if($assignation)
+            return true;
+        return false;
+    }
 
 
 

@@ -1,4 +1,6 @@
-<hr/>
+@if ($curentEtape->ordre == 1)
+    <hr />
+@endif
 <div class="col-md-8">
 
     <div class="form-group">
@@ -25,12 +27,12 @@
             </div>
         </div>
     @endforeach
-    
+
     <input type="hidden" name='collection_name' value="{{ $processus->collection_name }}">
     <input type="hidden" name='lib_processus' value="{{ $processus->lib_processus }}">
 @endif
 @if ($curentEtape->DocumentEtape->count() > 0)
-<hr />
+    <hr />
     <div class="col-md-12">
         <h6>Documents à charger</h6>
     </div>

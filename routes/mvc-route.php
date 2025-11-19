@@ -156,6 +156,8 @@ Route::group(['prefix'=>config('mvc.route_prefix')], function () { // remove thi
 			Route::get('selection-processus/{processus_id}', 'ProcessusEngage\ProcessusEngageController@selectionProcessus')->name('.selection-processus');
 			Route::get('set-etape/{processus_id}/{ordretape}', 'ProcessusEngage\ProcessusEngageController@setEtapeProcessus')->name('.set-etape');
 			Route::get('traitements', 'ProcessusEngage\ProcessusEngageController@traitementsProcessus');
+			Route::get('list-traitement-processus', 'ProcessusEngage\ProcessusEngageController@listTraitementsProcessus')->name('.list-traitement-processus');
+			Route::get('details-processus-engage/{processusEngageId}', 'ProcessusEngage\ProcessusEngageController@detailsProcessusEngage')->name('.details-processus-engage'); 
 			Route::post('store-processus-init', 'ProcessusEngage\ProcessusEngageController@storeProcessusInit')->name('.store-processus-init');
 		});
 		Route::resource('processus-engage', 'ProcessusEngage\ProcessusEngageController');
