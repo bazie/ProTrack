@@ -11,7 +11,7 @@ class ProcessusEngage extends Model
 {
     use HasFactory, HasUuids, SoftDeletes;
 
-    protected $fillable = ['id','type_entite','entite_id','processus_id','etape_id','etat'];
+    protected $fillable = ['id','type_entite','entite_id','processus_id','description','initiate_by','etape_id','etat'];
     protected $casts = [];
     protected $table = 'processus_engages';
 

@@ -10,7 +10,7 @@ use App\Models\Etape;
 use App\Models\Level;
 use App\Models\ProcessusMongo;
 use App\Models\TypeDocument;
-use MongoDB\Laravel\Facades\DB;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
 class ProcessusController extends Controller
@@ -64,14 +64,16 @@ class ProcessusController extends Controller
         $data['collection_name'] = Utility::epurationName($request->lib_processus);
         if ($this->model::create($data)) {
 
-            (new ProcessusMongo())->setTable($data['collection_name'])->insert(['created_at' => now()]);
+            $mongoDB = DB::connection('mongodb')->getMongoDB();
+            $mongoDB->createCollection($data['collection_name']);
+            $mongoDB->selectCollection($data['collection_name'])->insertOne(['created_at' => now()]);
 
             $response = ['status' => TRUE, 'message' => 'Données enregistrées avec succès'];
         }
         return response()->json($response ?? ['status' => FALSE, 'message' => 'Les données n\'ont pas pu être enregistrées']);
     }
 
-    
+
 
     public function show($id)
     {
@@ -93,8 +95,26 @@ class ProcessusController extends Controller
         ]);
 
         $data = $this->model::find($id);
+        $collection_name = Utility::epurationName($request->lib_processus);
+        if ($data['collection_name'] != $collection_name) {
+            $oldName = $data['collection_name'];
+            $data['collection_name'] = $collection_name;
+
+        }
         if ($data->update($request->all())) {
-            $response = ['status' => TRUE, 'message' => 'Data berhasil disimpan'];
+
+            $mongoDB = DB::connection('mongodb')->getMongoDB();
+
+            if (isset($oldName) && $mongoDB->selectCollection($oldName)->countDocuments() > 0) {
+                // Rename existing collection
+                $mongoDB->selectCollection($oldName)->rename($collection_name);
+            } else {
+                // Create new collection
+                $mongoDB->createCollection($collection_name);
+                $mongoDB->selectCollection($collection_name)->insertOne(['created_at' => now()]);
+            }
+
+            $response = ['status' => TRUE, 'message' => 'Données enregistrées avec succès'];
         }
         return response()->json($response ?? ['status' => FALSE, 'message' => 'Les données n\'ont pas pu être enregistrées']);
     }
@@ -123,8 +143,6 @@ class ProcessusController extends Controller
         $processus = $this->model::find($id);
         return view($this->view . '.list-etape.list-etape-by-processus', compact('etapes', 'processus'));
     }
-
-
 
     public function sortedEtapes(Request $request)
     {
@@ -223,7 +241,7 @@ class ProcessusController extends Controller
     public function editEtape($id)
     {
         $this->view = config('master.app.view.backend') . '.etape';
-        
+
         $etape = Etape::find($id);
         $processus = $this->model::find($etape->processus_id);
         $levels = Level::all()->pluck('name', 'id');
@@ -237,7 +255,7 @@ class ProcessusController extends Controller
         });
 
         $metadatas = EtapeMetadonnee::where('etape_id', $id)->get();
-        
+
         return view($this->view . '.edit', compact('etape', 'processus', 'levels', 'documents', 'metadatas'));
     }
     public function updateEtape(Request $request)
@@ -246,7 +264,7 @@ class ProcessusController extends Controller
             'nom_etape' => 'required',
             'processus_id' => 'required',
         ]);
-        $etape =  Etape::find($request->idEtape);
+        $etape = Etape::find($request->idEtape);
         if ($etape->update($request->all())) {
 
             // documents_etape peut être array ou valeur simple
@@ -274,7 +292,8 @@ class ProcessusController extends Controller
         return response()->json($response ?? ['status' => FALSE, 'message' => 'Les données n\'ont pas pu être enregistrées']);
     }
 
-    public function updateEtapeDocuments($docs,$etape_id){
+    public function updateEtapeDocuments($docs, $etape_id)
+    {
         $documentsEtape_existant = DocumentEtape::where('etape_id', $etape_id)->pluck('type_document_id')->toArray();
         foreach ($docs as $doc) {
             if (!in_array($doc, $documentsEtape_existant)) {
@@ -288,7 +307,8 @@ class ProcessusController extends Controller
         }
     }
 
-    public function updateEtapeMetadatas($metas, $types, $requireds, $etape_id){
+    public function updateEtapeMetadatas($metas, $types, $requireds, $etape_id)
+    {
         $metadonnees_existant = EtapeMetadonnee::where('etape_id', $etape_id)->pluck('libelle')->toArray();
         $i = 0;
         foreach ($metas as $meta) {
@@ -305,7 +325,7 @@ class ProcessusController extends Controller
         }
     }
 
-    public function deleteEtape ($id)
+    public function deleteEtape($id)
     {
         $this->view = config('master.app.view.backend') . '.etape';
         $data = Etape::find($id);
@@ -320,5 +340,5 @@ class ProcessusController extends Controller
         }
         return response()->json($response ?? ['status' => FALSE, 'message' => 'Echec de la suppresion des donnée']);
     }
-        
+
 }

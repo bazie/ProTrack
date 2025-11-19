@@ -17,6 +17,7 @@ return new class extends Migration
             $table->uuid("id")->primary();
 			$table->foreignUuid("user_id")->nullable()->constrained();
 			$table->foreignUuid("processus_engage_id")->nullable()->constrained();
+			$table->foreignUuid("assignate_by")->nullable()->constrained();
 			$table->bigInteger("etape_id")->nullable()->constrained();
 			$table->date("date_assignation")->nullable();
 			$table->string("approbation")->nullable();

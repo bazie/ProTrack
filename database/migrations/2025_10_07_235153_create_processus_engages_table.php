@@ -19,6 +19,8 @@ return new class extends Migration
 			$table->bigInteger("entite_id")->nullable()->constrained();
 			$table->bigInteger("processus_id")->nullable()->constrained();
             $table->bigInteger("etape_id")->nullable()->constrained();
+            $table->text("description")->nullable();
+            $table->foreignUuid("initiate_by")->nullable()->constrained();
             $table->string("etat")->nullable();
 			$table->timestamps();
 			$table->softDeletes();

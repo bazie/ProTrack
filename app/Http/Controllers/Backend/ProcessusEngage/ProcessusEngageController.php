@@ -3,16 +3,21 @@
 namespace App\Http\Controllers\Backend\ProcessusEngage;
 
 use App\Http\Controllers\Controller;
+use App\Models\AnneeFiscale;
 use App\Models\Departement;
 use App\Models\DocumentEtape;
+use App\Models\DocumentEtapeUpload;
 use App\Models\Etape;
 use App\Models\Level;
 use App\Models\Processus;
 use App\Models\ProcessusEngage;
+use App\Models\ProcessusMongo;
 use App\Models\Projet;
 use App\Models\User;
+use App\Models\UserAssigneEtape;
 use Dom\Document;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Process;
 
 class ProcessusEngageController extends Controller
@@ -71,7 +76,6 @@ class ProcessusEngageController extends Controller
             ->rawColumns(['action'])
             ->make();
     }
-
 
     public function getEntites(Request $request, $type)
     {
@@ -137,38 +141,180 @@ class ProcessusEngageController extends Controller
 
     }
 
-    public function getUsers($option,$level)
+    public function getUsers($option, $level)
     {
         if ($option == 'more') {
             $users = User::selectRaw("CONCAT(first_name, ' ', last_name, ' (', email, ')') AS full_name, id")
                 ->pluck('full_name', 'id');
         } else {
-            $users =User::where('level_id', $level)
-            ->selectRaw("CONCAT(first_name, ' ', last_name, ' (', email, ')') AS full_name, id")
-            ->pluck('full_name', 'id');
+            $users = User::where('level_id', $level)
+                ->selectRaw("CONCAT(first_name, ' ', last_name, ' (', email, ')') AS full_name, id")
+                ->pluck('full_name', 'id');
         }
         return response()->json($users);
 
     }
 
+
+
     public function storeProcessusInit(Request $request)
     {
-        // Merge entite_id based on type_entite
-        if ($request->type_entite == 'departement') {
-            $request->merge(['entite_id' => $request->departement_id]);
-        } elseif ($request->type_entite == 'projet') {
-            $request->merge(['entite_id' => $request->projet_id]);
+        // Définir entite_id en fonction de type_entite
+
+        $request->merge([
+            'etat' => 'en_cours',
+            'etape_id' => $request->etape_next_id,
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $processusEngage = ProcessusEngage::create($request->all());
+
+            $currentEtape = Etape::with(['Metadonnees', 'DocumentEtape'])
+                ->findOrFail($request->etape_current_id);
+
+            $saveMeta = $this->saveMetadonnee($request, $currentEtape, $processusEngage->id);
+            $saveDocument = $this->saveDocumentEtape($request, $currentEtape, $processusEngage->id);
+            $saveUsers = $this->saveEtapeUsers($request, $processusEngage->id);
+
+            if ($saveMeta && $saveDocument && $saveUsers) {
+                DB::commit();
+                return response()->json(['status' => true, 'message' => 'Données enregistrées avec succès']);
+            }
+
+            // Si échec, rollback et suppression
+            DB::rollBack();
+            $processusEngage->delete();
+
+            return response()->json([
+                'status' => false,
+                'message' => !$saveMeta ? 'Échec de l\'enregistrement des métadonnées' : 'Échec de l\'enregistrement des documents'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['status' => false, 'message' => 'Erreur : ' . $e->getMessage()]);
         }
-        $request->merge(['etat' => 'en_cours']);
-
-
-
-        $processusEngage = ProcessusEngage::create($request->all());
-        if ($this->model::create($request->all())) {
-            $response = ['status' => TRUE, 'message' => 'Données enregistrées avec succès'];
-        }
-        return response()->json($response ?? ['status' => FALSE, 'message' => 'Les données n\'ont pas pu être enregistrées']);
     }
+
+    public function saveMetadonnee(Request $request, $currentEtape, $processusEngage_id)
+    {
+        $metas = $currentEtape->Metadonnees;
+        if (empty($metas))
+            return true;
+
+
+        $attributes = collect($metas)
+            ->mapWithKeys(fn($meta) => [
+                $meta->field_name => $request->input($meta->field_name)
+            ]) // Ajoute la colonne
+            ->toArray();
+
+        $mongodb = DB::connection('mongodb');
+        try {
+            if ($this->checkCollection($mongodb, $request->collection_name)) {
+
+                $mongodb->selectCollection($request->collection_name)
+                    ->updateOne(
+                        ['processusEngage_id' => $processusEngage_id], // Critère
+                        ['$set' => $attributes], // Données
+                        ['upsert' => true] // Crée si non trouvé
+                    );
+
+            } else {
+                $mongodb->getMongoDB()->createCollection($request->collection_name);
+                $mongodb->selectCollection($request->collection_name)
+                    ->insertOne(array_merge(['processusEngage_id' => $processusEngage_id], $attributes));
+
+            }
+            return true; // Retourne true si l'opération a réussi
+
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    public function checkCollection($mongodb, $collectionName)
+    {
+        $collections = $mongodb->getMongoDB()->listCollections();
+        foreach ($collections as $collection) {
+            if ($collection->getName() === $collectionName) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public function saveDocumentEtape(Request $request, $currentEtape, $processusEngage_id)
+    {
+        $documents = $currentEtape->DocumentEtape;
+        if (empty($documents))
+            return true;
+
+        foreach ($documents as $doc) {
+            if ($request->hasFile('document_' . $doc->id)) {
+                $file = $request->file('document_' . $doc->id);
+                $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)
+                    . '_' . time() . '.' . $file->getClientOriginalExtension();
+
+                $repertoire = $this->getPathDocumentEtape($request->type_entite, $request->entite_id, $request->lib_processus);
+                $path = $file->storeAs($repertoire, $filename, 'public');
+                $url = asset('storage/' . $path);
+
+                DocumentEtapeUpload::create([
+                    'processus_engage_id' => $processusEngage_id,
+                    'document_etape_id' => $doc->id,
+                    'titre' => $filename,
+                    'url' => $url,
+                ]);
+            }
+        }
+        return true; // Retourne true si tous les documents ont été traités
+    }
+
+    public function getPathDocumentEtape($typeEntite, $entite_id, $processus_lib)
+    {
+        $entite = match ($typeEntite) {
+            'departement' => Departement::find($entite_id)?->dep_name ?? 'inconnu',
+            'projet' => 'Programmes/Projets' . Projet::find($entite_id)?->short_name ?? 'inconnu',
+            default => 'global',
+        };
+
+        $anneeFiscale = AnneeFiscale::where('statut', 'En cours')->value('libelle') ?? date('Y');
+        $month = date('m-Y');
+
+        return "{$entite}/{$processus_lib}/{$anneeFiscale}/{$month}";
+    }
+
+    public function saveEtapeUsers(Request $request, $processusEngage_id)
+    {
+        $userIds = $request->input('users', []);
+        if (empty($userIds)) {
+            return false;
+        }
+        try {
+            foreach ($userIds as $userId) {
+                UserAssigneEtape::create([
+                    'processus_engage_id' => $processusEngage_id,
+                    'user_id' => $userId,
+                    'etape_id' => $request->etape_id,
+                    'date_assignation' => now(),
+                ]);
+
+            }
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    public function traitementsProcessus(Request $request)
+    {
+        $user = $request->user();
+        $processusInities = ProcessusEngage::with('processus','etape')->where('initiate_by', $user->id)->get();
+        return view($this->view . '.traitement.traitement-processus', compact('processusInities'));
+    }
+
 
 
 
@@ -183,6 +329,7 @@ class ProcessusEngageController extends Controller
 
         if ($this->model::create($request->all())) {
             $response = ['status' => TRUE, 'message' => 'Données enregistrées avec succès'];
+            return true;
         }
         return response()->json($response ?? ['status' => FALSE, 'message' => 'Les données n\'ont pas pu être enregistrées']);
     }
@@ -210,7 +357,7 @@ class ProcessusEngageController extends Controller
 
         $data = $this->model::find($id);
         if ($data->update($request->all())) {
-            $response = ['status' => TRUE, 'message' => 'Data berhasil disimpan'];
+            $response = ['status' => TRUE, 'message' => 'Données enregistrées avec succès'];
         }
         return response()->json($response ?? ['status' => FALSE, 'message' => 'Les données n\'ont pas pu être enregistrées']);
     }

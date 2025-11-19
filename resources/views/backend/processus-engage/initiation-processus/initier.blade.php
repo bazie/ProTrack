@@ -26,7 +26,7 @@
                                     </div>
                                     <div class="col-md-4" id="divEntite">
                                         {!! html()->label()->class('control-label h6')->for('entite')->text('Entité') !!}
-                                        {!! html()->select('entite', [])->placeholder('-- Entité--')->class('form-control select2 selection')->id('entite') !!}
+                                        {!! html()->select('entite_id', [])->placeholder('-- Entité--')->class('form-control select2 selection')->id('entite') !!}
                                     </div>
                                 </div>
                                 <div class="row mt-30" id="initProcessus">

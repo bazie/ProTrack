@@ -11,7 +11,7 @@ class UserAssigneEtape extends Model
 {
     use HasFactory, HasUuids, SoftDeletes;
 
-    protected $fillable = ['id','user_id','processus_engage_id','etape_id','date_assignation','approbation','date_approbation','commentaire'];
+    protected $fillable = ['id','user_id','processus_engage_id','assignate_by','etape_id','date_assignation','approbation','date_approbation','commentaire'];
     protected $casts = [];
     protected $table = 'user_assigne_etapes';
 

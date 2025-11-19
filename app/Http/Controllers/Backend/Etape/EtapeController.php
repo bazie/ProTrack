@@ -76,7 +76,7 @@ class EtapeController extends Controller
 
         $data=$this->model::find($id);
         if($data->update($request->all())){
-            $response=[ 'status'=>TRUE, 'message'=>'Data berhasil disimpan'];
+            $response=[ 'status'=>TRUE, 'message'=>'Données enregistrées avec succès'];
         }
         return response()->json($response ?? ['status'=>FALSE, 'message'=>'Les données n\'ont pas pu être enregistrées']);
     }
