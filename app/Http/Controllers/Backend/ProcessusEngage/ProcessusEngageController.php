@@ -123,21 +123,28 @@ class ProcessusEngageController extends Controller
         return view($this->view . '.initiation-processus.selection-processus', compact('processus', 'etapes', 'dureeProcessus'));
     }
 
-    public function setEtapeProcessus($processus_id, $ordretape)
+    public function setEtapeProcessus($processus_id, $ordre_etape)
     {
-        $ordretape = $ordretape+1;
         $processus = Processus::find($processus_id);
         $curentEtape = Etape::with('Metadonnees', 'DocumentEtape.TypeDocument')->where('processus_id', $processus_id)
-            ->where('ordre', $ordretape)
+            ->where('ordre', $ordre_etape)
             ->first();
-        $nextEtape = Etape::with('Metadonnees', 'DocumentEtape.TypeDocument')->where('processus_id', $processus_id)
-            ->where('ordre', $curentEtape->ordre + 1)
-            ->first();
-        $nextEtapeUsers = User::where('level_id', $nextEtape->level_id)
-            ->selectRaw("CONCAT(first_name, ' ', last_name, ' (', email, ')') AS full_name, id")
-            ->pluck('full_name', 'id');
+        $nbEtapes = Etape::where('processus_id', $processus_id)->count();
+        if ($ordre_etape < $nbEtapes) {
+            $nextEtape = Etape::with('Metadonnees', 'DocumentEtape.TypeDocument')->where('processus_id', $processus_id)
+                ->where('ordre', $curentEtape->ordre + 1)
+                ->first();
+            $nextEtapeUsers = User::where('level_id', $nextEtape->level_id)
+                ->selectRaw("CONCAT(first_name, ' ', last_name, ' (', email, ')') AS full_name, id")
+                ->pluck('full_name', 'id');
+            return view($this->view . '.form-etape-processus', compact('curentEtape', 'nextEtape', 'nextEtapeUsers', 'processus'));
+        } else {
+            return view($this->view . '.form-last-etape-processus', compact('curentEtape', 'processus'));
+        }
+        // Ajout du $ pour éviter une erreur si nextEtape est null
 
-        return view($this->view . '.form-etape-processus', compact('curentEtape', 'nextEtape', 'nextEtapeUsers', 'processus'));
+
+        
 
     }
 
@@ -177,11 +184,14 @@ class ProcessusEngageController extends Controller
             $saveMeta = $this->saveMetadonnee($request, $currentEtape, $processusEngage->id);
             $saveDocument = $this->saveDocumentEtape($request, $currentEtape, $processusEngage->id);
             $saveFirstEtape = $this->assignationPremiereEtape($request->etape_current_id, $request->user()->id, $processusEngage->id);
+            
             $saveUsers = $this->saveEtapeUsers($request, $processusEngage->id, $request->user()->id);
 
             if ($saveMeta && $saveDocument && $saveUsers && $saveFirstEtape) {
                 DB::commit();
-                return response()->json(['status' => true, 'message' => 'Données enregistrées avec succès']);
+                $this->sendMail($request->input('users', []), 'Action en attente', 'Un nouveau processus a été initié et vous a été assigné une tâche.');
+                return redirect()->route('processus-engage.traitements');
+
             }
 
             // Si échec, rollback et suppression
@@ -196,6 +206,67 @@ class ProcessusEngageController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['status' => false, 'message' => 'Erreur : ' . $e->getMessage()]);
+        }
+    }
+
+    public function storeProcessusEtape(Request $request)
+    {
+        $processusEngage = ProcessusEngage::find($request->processus_engage_id);
+        $etape_ordre = $request->etape_ordre;
+        $nbProcessusEtapes = Etape::where('processus_id', $processusEngage->processus_id)->count();
+        if ($etape_ordre < $nbProcessusEtapes) {
+            $request->merge([
+                'etat' => 'En cours',
+                'etape_id' => $request->etape_next_id,
+            ]);
+        } else {
+            $request->merge([
+                'etat' => 'Terminé',
+            ]);
+        }
+        ;
+
+        DB::beginTransaction();
+        try {
+            $processusEngage->update($request->all());
+
+            $currentEtape = Etape::with(['Metadonnees', 'DocumentEtape'])
+                ->findOrFail($request->etape_current_id);
+
+            $saveMeta = $this->saveMetadonnee($request, $currentEtape, $processusEngage->id);
+            $saveDocument = $this->saveDocumentEtape($request, $currentEtape, $processusEngage->id);
+            $approbation = $this->validerEtape($processusEngage->id, $request->user()->id);
+            $saveUsers = $this->saveEtapeUsers($request, $processusEngage->id, $request->user()->id);
+
+            if ($saveMeta && $saveDocument && $saveUsers && $approbation) {
+                DB::commit();
+                $this->sendMail($request->input('users', []), 'Action en attente', 'Un nouveau processus a été initié et vous a été assigné une tâche.');
+                return redirect()->route('processus-engage.traitements');
+
+            }
+
+            // Si échec, rollback et suppression
+            DB::rollBack();
+            $processusEngage->delete();
+
+            return response()->json([
+                'status' => false,
+                'message' => !$saveMeta ? 'Échec de l\'enregistrement des métadonnées' : 'Échec de l\'enregistrement des documents'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['status' => false, 'message' => 'Erreur : ' . $e->getMessage()]);
+        }
+    }
+
+    public function sendMail($listUsers_id, $subject, $message)
+    {
+        foreach ($listUsers_id as $user_id) {
+            $user = User::find($user_id);
+            if ($user) {
+                \Mail::to($user->email)->send(new \App\Mail\MessagePersonnaliseMail($user->first_name . ' ' . $user->last_name, $subject, $message));
+            }
         }
     }
 
@@ -282,7 +353,12 @@ class ProcessusEngageController extends Controller
             default => 'global',
         };
 
-        $anneeFiscale = AnneeFiscale::where('statut', 'En cours')->value('libelle') ?? date('Y');
+        $fy = AnneeFiscale::where('statut', "En cours")->first();
+        if (!$fy) {
+            $anneeFiscale = date('Y');
+        } else {
+            $anneeFiscale = $fy->libelle;
+        }
         $month = date('m-Y');
 
         return "{$entite}/{$processus_lib}/{$anneeFiscale}/{$month}";
@@ -293,6 +369,7 @@ class ProcessusEngageController extends Controller
     {
         $userAssign = UserAssigneEtape::where('processus_engage_id', $processusEngage_id)
             ->where('user_id', $user_id)
+            ->where('approbation', NULL)
             ->first();
 
         if ($userAssign) {
@@ -342,7 +419,7 @@ class ProcessusEngageController extends Controller
         $userIds = $request->input('users', []);
 
         if (empty($userIds)) {
-            return false;
+            return true;
         }
         try {
             foreach ($userIds as $userId) {
@@ -362,14 +439,12 @@ class ProcessusEngageController extends Controller
         }
     }
 
-
-
     public function traitementsProcessus(Request $request)
     {
         $user = $request->user();
         $processusInities = ProcessusEngage::with('processus', 'etape')
             ->where('initiate_by', $user->id)
-            ->where('etat', 'En cours')
+            //->where('etat', 'En cours')
             ->get();
         $processusAssignes = UserAssigneEtape::with([
             'processusEngage.processus:id,lib_processus,collection_name',
@@ -388,7 +463,8 @@ class ProcessusEngageController extends Controller
                 $query->where('etat', 'En cours');
             })
             ->get();
-        
+            
+
 
         return view($this->view . '.traitement.traitement-processus', compact('processusInities', 'processusAssignes'));
     }
@@ -439,13 +515,15 @@ class ProcessusEngageController extends Controller
             ->where('processus_engage_id', $processusEngageId)
             ->orderBy('created_at')->get();
 
-        $allowAction = $this->allowAction($request->user()->id, $processusEngageId);
+        $allowAction = $processusEngage->etat !== 'Terminé' && $this->allowAction($request->user()->id, $processusEngageId);
 
         return view($this->view . '.traitement.details-processus-engage', compact('processusEngage', 'metas', 'documents', 'etapesTraitees', 'allowAction'));
     }
 
 
-    public function getListMetadonnees($processus_id, $processusEngageId,$collectionName)
+
+
+    public function getListMetadonnees($processus_id, $processusEngageId, $collectionName)
     {
         // Récupération des métadonnées MongoDB
 
@@ -484,6 +562,7 @@ class ProcessusEngageController extends Controller
 
     public function allowAction($user_id, $processusEngage_id)
     {
+
         $assignation = UserAssigneEtape::where('user_id', $user_id)
             ->where('processus_engage_id', $processusEngage_id)
             ->where(function ($query) {
@@ -491,12 +570,60 @@ class ProcessusEngageController extends Controller
                     ->orWhereNotIn('approbation', ['OUI', 'NON']);
             })
             ->first();
-        if($assignation)
+        if ($assignation)
             return true;
         return false;
     }
 
+    public function retournerEtapePrecedente(Request $request, $processusEngageId)
+    {
+        $user = $request->user();
+        $processusEngage = ProcessusEngage::find($processusEngageId);
+        $ordreEtapeActuelle = $processusEngage->etape->ordre;
+        if ($ordreEtapeActuelle > 1) {
+            $assignation = UserAssigneEtape::where('user_id', $user->id)
+                ->where('processus_engage_id', $processusEngageId)
+                ->where(function ($query) {
+                    $query->whereNull('approbation')
+                        ->orWhereNotIn('approbation', ['OUI', 'NON']);
+                })
+                ->first();
+            $assignation->update(['approbation' => 'NON']);
+            $etapePrecedente = Etape::where('processus_id', $processusEngage->processus_id)
+                ->where('ordre', $ordreEtapeActuelle - 1)
+                ->first();
+            $processusEngage->update(['etape_id' => $etapePrecedente->id]);
+            UserAssigneEtape::create([
+                'processus_engage_id' => $processusEngageId,
+                'user_id' => $assignation->assignate_by,
+                'etape_id' => $etapePrecedente->id,
+                'assignate_by' => $user->id,
+                'date_assignation' => now(),
+            ]);
 
+            $this->sendMail([$assignation->assignate_by], 'Action en attente', 'Le processus a été retourné à votre étape pour révision.');
+        }
+        $processusInities = ProcessusEngage::with('processus', 'etape')
+            ->where('initiate_by', $user->id)
+            ->where('etat', 'En cours')
+            ->get();
+        $processusAssignes = UserAssigneEtape::with([
+            'processusEngage.processus:id,lib_processus,collection_name',
+            'processusEngage.projet:id,short_name',
+            'processusEngage.departement:id,dep_name',
+            'etape:id,nom_etape,delai',
+            'assignedByUser:id,first_name,last_name,email',
+
+        ])
+            ->where('user_id', $user->id)
+            ->where('approbation', null)
+            ->whereHas('processusEngage', function ($query) {
+                $query->where('etat', 'En cours');
+            })
+            ->get();
+
+        return view($this->view . '.traitement.all-tables-traitements', compact('processusInities', 'processusAssignes'));
+    }
 
     public function store(Request $request)
     {

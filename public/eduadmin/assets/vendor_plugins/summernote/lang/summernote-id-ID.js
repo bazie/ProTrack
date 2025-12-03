@@ -166,7 +166,7 @@ return /******/ (function(modules) { // webpackBootstrap
       },
       table: {
         table: 'Tabel',
-        addRowAbove: 'Tambahkan baris ke atas',
+        addRowAbove: 'Ajouter une ligne en haut',
         addRowBelow: 'Tambahkan baris ke bawah',
         addColLeft: 'Tambahkan kolom ke kiri',
         addColRight: 'Tambahkan kolom ke kanan',

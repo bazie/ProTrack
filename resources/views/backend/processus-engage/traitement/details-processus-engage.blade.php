@@ -159,11 +159,21 @@
         </div>
     </div>
 </div>
-<div class="row d-none" id="actions-processus-engage" >
+{{ html()->form('POST', route($page->url . '.store-processus-etape'))->id('form-etape-' . $page->code)->acceptsFiles()->class('form form form-horizontal')->open() }}
+<input type="hidden" name="processus_engage_id" value="{{ $processusEngage->id }}">
+<input type="hidden" name="etape_ordre" value="{{ $processusEngage->etape->ordre }}">
+<div class="row d-none" id="actions-processus-engage">
     <div class="col-12">
         <div class="box">
             <div class="box-header">
-                <h4 class="box-title">Etape {{ $processusEngage->etape->ordre }}: <strong> {{ $processusEngage->etape->nom_etape}}</strong></h4>
+                <button type="button" id ="back_details"class="btn btn-default btn-sm mb-10" data-processus_engage="{{ $processusEngage->id }}" >
+                <i class="fa fa-arrow-left"></i>
+            </button>
+                <h4 class="box-title">Etape {{ $processusEngage->etape->ordre }}: <strong>
+                        {{ $processusEngage->etape->nom_etape }}</strong></h4>
+                <button type="button" id="retourner-etape-precedente" class="pull-right btn btn-danger btn-sm" data-title="Retourner à l'étape précédente" data-processus_engage="{{ $processusEngage->id }}"  >
+                    <span class="fa fa-mail-reply"></span> Retourner le dossier à l'étape précédente
+                </button>
             </div>
             <div class="box-body">
                 <div class="row" id="form-etape-processus-container"></div>
@@ -173,7 +183,9 @@
 </div>
 @if ($allowAction)
     <div class="col-md-12 text-center">
-        <button type="button" class="btn btn-primary btn-lg" id="btn-action-processus" data-processus-id="{{ $processusEngage->processus->id }}" data-etape-ordre="{{ $processusEngage->etape->ordre }}">
+        <button type="button" class="btn btn-primary btn-lg" id="btn-action-processus"
+            data-processus-id="{{ $processusEngage->processus->id }}"
+            data-etape-ordre="{{ $processusEngage->etape->ordre }}">
             <i class="mdi mdi-play-circle"></i> Effectuer une action
         </button>
     </div>

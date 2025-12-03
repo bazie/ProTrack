@@ -154,11 +154,13 @@ Route::group(['prefix'=>config('mvc.route_prefix')], function () { // remove thi
 			Route::get('get-entites/{type}', 'ProcessusEngage\ProcessusEngageController@getEntites')->name('.get-entites');
 			Route::get('get-users/{option}/{level}', 'ProcessusEngage\ProcessusEngageController@getUsers')->name('.get-users');
 			Route::get('selection-processus/{processus_id}', 'ProcessusEngage\ProcessusEngageController@selectionProcessus')->name('.selection-processus');
-			Route::get('set-etape/{processus_id}/{ordretape}', 'ProcessusEngage\ProcessusEngageController@setEtapeProcessus')->name('.set-etape');
-			Route::get('traitements', 'ProcessusEngage\ProcessusEngageController@traitementsProcessus');
+			Route::get('set-etape/{processus_id}/{ordre_etape}', 'ProcessusEngage\ProcessusEngageController@setEtapeProcessus')->name('.set-etape');
+			Route::get('traitements', 'ProcessusEngage\ProcessusEngageController@traitementsProcessus')->name('.traitements');
 			Route::get('list-traitement-processus', 'ProcessusEngage\ProcessusEngageController@listTraitementsProcessus')->name('.list-traitement-processus');
-			Route::get('details-processus-engage/{processusEngageId}', 'ProcessusEngage\ProcessusEngageController@detailsProcessusEngage')->name('.details-processus-engage'); 
+			Route::get('details-processus-engage/{processusEngageId}', 'ProcessusEngage\ProcessusEngageController@detailsProcessusEngage')->name('.details-processus-engage');
+			Route::get('retourner-etape-precedente/{processusEngageId}', 'ProcessusEngage\ProcessusEngageController@retournerEtapePrecedente')->name('.retourner-etape-precedente'); 
 			Route::post('store-processus-init', 'ProcessusEngage\ProcessusEngageController@storeProcessusInit')->name('.store-processus-init');
+			Route::post('store-processus-etape', 'ProcessusEngage\ProcessusEngageController@storeProcessusEtape')->name('.store-processus-etape');
 		});
 		Route::resource('processus-engage', 'ProcessusEngage\ProcessusEngageController');
 		//end-processus-engage

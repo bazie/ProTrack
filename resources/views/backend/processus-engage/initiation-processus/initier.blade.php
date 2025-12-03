@@ -129,11 +129,11 @@
             var entiteId = $('#entite').val();
             if (processusId && typeEntite && entiteId) {
                 var urlSetFirstEtape =
-                    "{{ route($page->url . '.set-etape', ['processus_id' => ':processusId', 'ordretape' => ':ordreEtape']) }}";
+                    "{{ route($page->url . '.set-etape', ['processus_id' => ':processusId', 'ordre_etape' => ':ordre_etape']) }}";
 
                 urlSetFirstEtape = urlSetFirstEtape
                     .replace(':processusId', processusId)
-                    .replace(':ordreEtape', 0);
+                    .replace(':ordre_etape', 1);
 
 
                 $('#initProcessus').html(

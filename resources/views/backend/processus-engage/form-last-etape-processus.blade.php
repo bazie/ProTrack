@@ -64,29 +64,12 @@
 
 @endif
 <input type="hidden" name="etape_current_id" value="{{ $curentEtape->id }}">
-<input type="hidden" name="etape_next_id" value="{{ $nextEtape->id }}">
-<div class="col-md-12">
-    <hr />
-</div>
-
-<div class="col-md-6">
-    <h5>Destinataire(s) de l'étape suivante :<b> {{ $nextEtape->nom_etape }} </b></h5>
-</div>
-<div class="col-md-5">
-    {!! html()->select('users', $nextEtapeUsers)->placeholder('-- Destinataire(s)--')->class('form-control select2 selection')->id('users')->multiple()->required() !!}
-</div>
-<div class="col-md-1">
-    <button type="button" id="btn-more-users" data-option="more" data-level="{{ $nextEtape->level_id }}"
-        class="btn-members btn btn-sm btn-outline" title="Plus de destinataires"> <i
-            class="fa fa-users text-primary"></i> </button>
-</div>
-
 <div class="col-md-12">
     <hr />
 </div>
 
 <div class="col-md-12 text-center">
     <button type="submit" class="btn btn-success btn-lg" id="submit-etape-processus">
-        <i class="mdi mdi-check-bold" id="valider-etape" ></i> Valider l'étape : {{ $curentEtape->nom_etape }}
+        <i class="mdi mdi-check-bold" id="valider-etape" ></i> Valider la derniere étape et cloturer le processus
     </button>
 </div>

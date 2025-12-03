@@ -32,6 +32,7 @@
                                                 <th>Processus</th>
                                                 <th>Description</th>
                                                 <th>Date assignation</th>
+                                                <th>Etat</th>
                                                 <th>Étape actuelle</th>
                                                 <th>Actions</th>
                                             </tr>
@@ -43,6 +44,7 @@
                                                     <td>{{ $process->processus->lib_processus }}</td>
                                                     <td>{{ $process->description }}</td>
                                                     <td>{{ $process->created_at->format('d/m/Y') }}</td>
+                                                    <td>{{ $process->etat }}</td>
                                                     <td>
                                                         @if ($process->etape)
                                                             {{ $process->etape->nom_etape }}
